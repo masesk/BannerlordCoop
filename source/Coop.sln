@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30002.166
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Coop", "Coop\Coop.csproj", "{442B73F2-B103-4EF6-8B4B-A2F36F169515}"
 EndProject
@@ -37,6 +37,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RemoteAction", "RemoteAction\RemoteAction.csproj", "{D6E8252C-8EDE-4E01-9A61-6FB92B50FB6F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeployMod", "DeployMod\DeployMod.csproj", "{46709532-7DCC-4C7C-89CE-103E8E0F456F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestMod", "TestMod\TestMod.csproj", "{6C9B73DE-1B43-4BE8-B840-E095778A12AD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -155,6 +157,14 @@ Global
 		{46709532-7DCC-4C7C-89CE-103E8E0F456F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{46709532-7DCC-4C7C-89CE-103E8E0F456F}.Release|x64.ActiveCfg = Release|Any CPU
 		{46709532-7DCC-4C7C-89CE-103E8E0F456F}.Release|x64.Build.0 = Release|Any CPU
+		{6C9B73DE-1B43-4BE8-B840-E095778A12AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C9B73DE-1B43-4BE8-B840-E095778A12AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C9B73DE-1B43-4BE8-B840-E095778A12AD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6C9B73DE-1B43-4BE8-B840-E095778A12AD}.Debug|x64.Build.0 = Debug|Any CPU
+		{6C9B73DE-1B43-4BE8-B840-E095778A12AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C9B73DE-1B43-4BE8-B840-E095778A12AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C9B73DE-1B43-4BE8-B840-E095778A12AD}.Release|x64.ActiveCfg = Release|Any CPU
+		{6C9B73DE-1B43-4BE8-B840-E095778A12AD}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
