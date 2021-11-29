@@ -25,6 +25,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using TaleWorlds.ObjectSystem;
+using TaleWorlds.CampaignSystem.GameMenus;
 
 namespace CoopTestMod
 {
@@ -69,20 +70,23 @@ namespace CoopTestMod
         private Socket listener;
         private Socket handler;
         private bool isServer = false;
-        private UIntPtr agentPtr;
+        private UIntPtr playerPtr;
         private UIntPtr otherAgentPtr;
         Func<UIntPtr, Vec3> getPosition;
-        MyAction setPosition;
+        PositionRefDelegate setPosition;
         List<MatrixFrame> _initialSpawnFrames;
         IPEndPoint remoteEP;
         MatrixFrame randomElement2;
-
         float t;
 
 
 
+        // custom delegate is needed since SetPosition uses a ref Vec3
+        delegate void PositionRefDelegate(UIntPtr agentPtr, ref Vec3 position);
 
-        delegate void MyAction(UIntPtr agentPtr, ref Vec3 position);
+
+
+
 
         public bool ClientConnect(IPEndPoint remoteEP)
         {
@@ -114,7 +118,7 @@ namespace CoopTestMod
                 listener.Bind(localEndPoint);
                 // Specify how many requests a Socket can listen before it gives Server busy response.
                 // We will listen 10 requests at a time
-                listener.Listen(10);
+                listener.Listen(1000);
 
                 Console.WriteLine("Waiting for a connection...");
                 handler = listener.Accept();
@@ -125,19 +129,43 @@ namespace CoopTestMod
 
                 while (true)
                 {
-                    bytes = new byte[1024];
-                    int bytesRec = handler.Receive(bytes);
-
-                    float x = BitConverter.ToSingle(bytes, 0);
-                    float y = BitConverter.ToSingle(bytes, 4);
-                    float z = BitConverter.ToSingle(bytes, 8);
-                    Vec3 pos = new Vec3(x, y, z);
-                    //InformationManager.DisplayMessage(new InformationMessage("x: " + x + " | y: " + y + " | z: " + z));
-                    if (Mission.Current != null && agentPtr != UIntPtr.Zero &&  otherAgentPtr != UIntPtr.Zero)
+                    try
                     {
-                        setPosition(otherAgentPtr, ref pos);
+                        bytes = new byte[1024];
+                        int bytesRec = handler.Receive(bytes);
+                        float x = BitConverter.ToSingle(bytes, 0);
+                        float y = BitConverter.ToSingle(bytes, 4);
+                        float z = BitConverter.ToSingle(bytes, 8);
+                        uint movementFlag = BitConverter.ToUInt32(bytes, 12);
+                        uint eventFlag = BitConverter.ToUInt32(bytes, 16);
+                        float moveX = BitConverter.ToSingle(bytes, 20);
+                        float moveY = BitConverter.ToSingle(bytes, 24);
+                        float looX = BitConverter.ToSingle(bytes, 28);
+                        float lookY = BitConverter.ToSingle(bytes, 32);
+                        Vec3 pos = new Vec3(x, y, z);
+                        Agent.UsageDirection direction = Agent.MovementFlagToDirection((Agent.MovementControlFlag)movementFlag);
+
+                        if (Mission.Current != null && playerPtr != UIntPtr.Zero && otherAgentPtr != UIntPtr.Zero)
+                        {
+
+
+                            setPosition(otherAgentPtr, ref pos);
+                            _otherAgent.MovementFlags = (Agent.MovementControlFlag)movementFlag;
+                            _otherAgent.EventControlFlags = (Agent.EventControlFlag)eventFlag;
+                            _otherAgent.SetMovementDirection(new Vec2(moveX, moveY));
+                            _otherAgent.MovementInputVector = new Vec2(looX, lookY);
+                            _otherAgent.EnforceShieldUsage(direction);
+                            _otherAgent.DefendDirectionToMovementFlag(direction);
+
+                        }
                     }
-                    
+                    catch (Exception ex)
+                    {
+                        File.AppendAllText("wouterror.txt", ex.Message);
+                    }
+
+
+
 
                 }
 
@@ -169,7 +197,7 @@ namespace CoopTestMod
                 // If a host has multiple addresses, you will get a list of addresses
                 IPHostEntry host = Dns.GetHostEntry("localhost");
                 IPAddress ipAddress = host.AddressList[0];
-                IPEndPoint remoteEP = new IPEndPoint(ipAddress, 11000);
+                remoteEP = new IPEndPoint(ipAddress, 11000);
 
                 // Create a TCP/IP  socket.
                 sender = new Socket(ipAddress.AddressFamily,
@@ -195,26 +223,47 @@ namespace CoopTestMod
                     // Receive the response from the remote device.
                     while (true)
                     {
-                        bytes = new byte[1024];
-                        int bytesRec = sender.Receive(bytes);
-
-                        float x = BitConverter.ToSingle(bytes, 0);
-                        float y = BitConverter.ToSingle(bytes, 4);
-                        float z = BitConverter.ToSingle(bytes, 8);
-                        Vec3 pos = new Vec3(x, y, z);
-                        //InformationManager.DisplayMessage(new InformationMessage("x: " + x + " | y: " + y + " | z: " + z));
-                        if (Mission.Current != null && agentPtr != UIntPtr.Zero && otherAgentPtr != UIntPtr.Zero)
+                        try
                         {
-                            
-                            
-                            setPosition(otherAgentPtr, ref pos);
+
+
+                            bytes = new byte[1024];
+                            int bytesRec = sender.Receive(bytes);
+                            float x = BitConverter.ToSingle(bytes, 0);
+                            float y = BitConverter.ToSingle(bytes, 4);
+                            float z = BitConverter.ToSingle(bytes, 8);
+                            uint movementFlag = BitConverter.ToUInt32(bytes, 12);
+                            uint eventFlag = BitConverter.ToUInt32(bytes, 16);
+                            float moveX = BitConverter.ToSingle(bytes, 20);
+                            float moveY = BitConverter.ToSingle(bytes, 24);
+                            float looX = BitConverter.ToSingle(bytes, 28);
+                            float lookY = BitConverter.ToSingle(bytes, 32);
+                            Vec3 pos = new Vec3(x, y, z);
+                            Agent.UsageDirection direction = Agent.MovementFlagToDirection((Agent.MovementControlFlag)movementFlag);
+
+                            //InformationManager.DisplayMessage(new InformationMessage("x: " + x + " | y: " + y + " | z: " + z));
+                            if (Mission.Current != null && playerPtr != UIntPtr.Zero && otherAgentPtr != UIntPtr.Zero)
+                            {
+
+
+                                setPosition(otherAgentPtr, ref pos);
+                                _otherAgent.MovementFlags = (Agent.MovementControlFlag)movementFlag;
+                                _otherAgent.EventControlFlags = (Agent.EventControlFlag)eventFlag;
+                                _otherAgent.SetMovementDirection(new Vec2(moveX, moveY));
+                                _otherAgent.MovementInputVector = new Vec2(looX, lookY);
+                                _otherAgent.EnforceShieldUsage(direction);
+                                _otherAgent.DefendDirectionToMovementFlag(direction);
+
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            File.AppendAllText("wouterror.txt", ex.Message);
                         }
                     }
 
 
-                    // Release the socket.
-                    sender.Shutdown(SocketShutdown.Both);
-                    sender.Close();
+
 
                 }
                 catch (ArgumentNullException ane)
@@ -228,6 +277,11 @@ namespace CoopTestMod
                 catch (Exception e)
                 {
                     Console.WriteLine("Unexpected exception : {0}", e.ToString());
+                }
+                finally
+                {
+                    sender.Shutdown(SocketShutdown.Both);
+                    sender.Close();
                 }
 
             }
@@ -257,13 +311,11 @@ namespace CoopTestMod
                 if (argument.ToLower() == "/server")
                 {
                     isServer = true;
-                    // InformationManager.DisplayMessage(new InformationMessage("Running as server!"));
                     thread = new Thread(StartServer);
                 }
                 else if (argument.ToLower() == "/client")
                 {
                     thread = new Thread(StartClient);
-                    //InformationManager.DisplayMessage(new InformationMessage("Running as client!"));
                 }
             }
             thread.IsBackground = true;
@@ -278,7 +330,7 @@ namespace CoopTestMod
         }
 
 
-        private Agent SpawnArenaAgent(CharacterObject character, MatrixFrame frame)
+        private Agent SpawnArenaAgent(CharacterObject character, MatrixFrame frame, bool isMain)
         {
             AgentBuildData agentBuildData = new AgentBuildData(character);
             agentBuildData.BodyProperties(character.GetBodyPropertiesMax());
@@ -288,7 +340,7 @@ namespace CoopTestMod
             vec = vec.Normalized();
             Agent agent = mission.SpawnAgent(agentBuildData2.InitialDirection(vec).NoHorses(true).Equipment(character.FirstBattleEquipment).TroopOrigin(new SimpleAgentOrigin(character, -1, null, default(UniqueTroopDescriptor))), false, 0);
             agent.FadeIn();
-            if (character == CharacterObject.PlayerCharacter)
+            if (isMain)
             {
                 agent.Controller = Agent.ControllerType.Player;
 
@@ -310,13 +362,17 @@ namespace CoopTestMod
         }
 
 
+
+        public override void OnAfterGameInitializationFinished(Game game, object starterObject)
+        {
+            base.OnAfterGameInitializationFinished(game, starterObject);
+        }
+
         protected override void OnApplicationTick(float dt)
         {
             // Press K first to load the Poros arena
             if (Input.IsKeyReleased(InputKey.K))
             {
-
-
                 // get the settlement first
                 this._settlement = Settlement.Find("town_ES3");
 
@@ -338,24 +394,21 @@ namespace CoopTestMod
                 //Open a new arena mission with the scene
                 MissionState.OpenNew("ArenaDuelMission", SandBoxMissions.CreateSandBoxMissionInitializerRecord(locationWithId.GetSceneName(upgradeLevel), "", false), (Mission mission) => new MissionBehaviour[]
                    {
-                            new MissionOptionsComponent(),
-                            //new ArenaDuelMissionController(CharacterObject.PlayerCharacter, false, false, null, 1), //this was the default controller that spawned the player and 1 opponent. Not very useful
-                            new MissionFacialAnimationHandler(),
-                            new MissionDebugHandler(),
-                            new MissionAgentPanicHandler(),
-                            new AgentBattleAILogic(),
-                            new ArenaAgentStateDeciderLogic(),
-                            new VisualTrackerMissionBehavior(),
-                            new CampaignMissionComponent(),
-                            new EquipmentControllerLeaveLogic(),
-                            new MissionAgentHandler(locationWithId, null)
+                                new MissionOptionsComponent(),
+                                //new ArenaDuelMissionController(CharacterObject.PlayerCharacter, false, false, null, 1), //this was the default controller that spawned the player and 1 opponent. Not very useful
+                                new MissionFacialAnimationHandler(),
+                                new MissionDebugHandler(),
+                                new MissionAgentPanicHandler(),
+                                new AgentBattleAILogic(),
+                                new ArenaAgentStateDeciderLogic(),
+                                new VisualTrackerMissionBehavior(),
+                                new CampaignMissionComponent(),
+                                new EquipmentControllerLeaveLogic(),
+                                new MissionAgentHandler(locationWithId, null)
                    }, true, true);
 
-
-
-
-
             }
+
 
             // Press slash next to spawn in the arena
             else if (Input.IsKeyReleased(InputKey.Slash))
@@ -387,157 +440,51 @@ namespace CoopTestMod
 
 
                 // spawn an instance of the player (controlled by default)
-                _player = SpawnArenaAgent(CharacterObject.PlayerCharacter, randomElement);
+                _player = SpawnArenaAgent(CharacterObject.PlayerCharacter, randomElement, true);
 
 
                 //spawn another instance of the player, uncontroller (this should get synced when someone joins)
-                _otherAgent = SpawnArenaAgent(CharacterObject.All.LastOrDefault(), randomElement2);
+                _otherAgent = SpawnArenaAgent(CharacterObject.PlayerCharacter, randomElement2, false);
 
 
                 // Our agent's pointer; set it to 0 first
-                agentPtr = UIntPtr.Zero;
+                playerPtr = UIntPtr.Zero;
 
 
                 // other agent's pointer
                 otherAgentPtr = (UIntPtr)_otherAgent.GetType().GetField("_pointer", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_otherAgent);
 
 
-                //// Find out agent's pointer from our agent instance
-                agentPtr = (UIntPtr)_player.GetType().GetField("_pointer", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_player);
+                // Find out agent's pointer from our agent instance
+                playerPtr = (UIntPtr)_player.GetType().GetField("_pointer", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_player);
+
+
+                // set the weapons to the available weapons
+                _player.WieldInitialWeapons();
+                _otherAgent.WieldInitialWeapons();
 
                 //// From MBAPI, get the private interface IMBAgent
                 FieldInfo IMBAgentField = typeof(MBAPI).GetField("IMBAgent", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 
+                // get the set and get method of position
                 MethodInfo getPositionMethod = IMBAgentField.GetValue(null).GetType().GetMethod("GetPosition");
                 MethodInfo setPositionMethod = IMBAgentField.GetValue(null).GetType().GetMethod("SetPosition");
 
-                if (setPositionMethod == null)
-                {
-                    InformationManager.DisplayMessage(new InformationMessage("Set Method is null!"));
-                }
-                else
-                {
-                    ParameterInfo[] par = setPositionMethod.GetParameters();
-                    foreach (ParameterInfo param in par)
-                    {
-                        InformationManager.DisplayMessage(new InformationMessage(param.ParameterType.Name));
-                    }
 
-                }
 
                 getPosition = (Func<UIntPtr, Vec3>)Delegate.CreateDelegate
                     (typeof(Func<UIntPtr, Vec3>), IMBAgentField.GetValue(null), getPositionMethod);
 
-                try
-                {
-                    setPosition = (MyAction)Delegate.CreateDelegate(typeof(MyAction), IMBAgentField.GetValue(null), setPositionMethod);
-                }
-                catch (Exception ex)
-                {
-                    File.AppendAllText("werror.txt", ex.Message);
-                }
+                setPosition = (PositionRefDelegate)Delegate.CreateDelegate(typeof(PositionRefDelegate), IMBAgentField.GetValue(null), setPositionMethod);
+
 
 
 
             }
 
-            //else if (Input.IsKeyDown(InputKey.W) || Input.IsKeyDown(InputKey.A) || Input.IsKeyDown(InputKey.S) || Input.IsKeyDown(InputKey.D))
-            //{
-            //    if (isServer)
-            //    {
-
-            //    }
-            //}
-
-            else if (Input.IsKeyReleased(InputKey.Numpad0))
-            {
-                if (isServer)
-                {
-                    if (handler != null && handler.Connected)
-                    {
-                        handler.Send(Encoding.ASCII.GetBytes("Hello from Server!"));
-                    }
-
-                }
-                else
-                {
-                    if (sender != null && sender.Connected)
-                    {
-                        sender.Send(Encoding.ASCII.GetBytes("Hello from Client!"));
-                    }
-
-                }
-            }
-            else if (Input.IsKeyReleased(InputKey.Numpad1))
-            {
-
-                MemoryStream stream = new MemoryStream();
-                using (System.IO.BinaryWriter writer = new System.IO.BinaryWriter(stream))
-                {
-                    writer.Write(408.5537f);
-                    writer.Write(433.4336f);
-                    writer.Write(-0.9081879f);
-                }
-                byte[] bytes = stream.ToArray();
-                if (isServer)
-                {
-                    handler.Send(bytes);
-                }
-
-                else
-                {
-                    sender.Send(bytes);
-                }
-                //InformationManager.DisplayMessage(new InformationMessage("Getting pointer info: "));
-                //UIntPtr agentPtr = UIntPtr.Zero;
-                //agentPtr = (UIntPtr)_player.GetType().GetField("_pointer", BindingFlags.Instance  | BindingFlags.NonPublic).GetValue(_player);
-                //InformationManager.DisplayMessage(new InformationMessage(agentPtr.ToString()));
-                //object agent = null;
-
-                //InformationManager.DisplayMessage(new InformationMessage("Printing data:"));
-                //FieldInfo field = typeof(MBAPI).GetField("IMBAgent", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-                //MethodInfo[] fields = field.GetValue(null).GetType().GetMethods();
-                //Vec3 vect = Vec3.Invalid;
-                //MethodInfo method = field.GetValue(null).GetType().GetMethod("GetPosition");
-
-                //if (method == null)
-                //{
-                //    InformationManager.DisplayMessage(new InformationMessage("Not found!"));
-                //}
-                //else
-                //{
-                //    InformationManager.DisplayMessage(new InformationMessage("Found!"));
-                //}
-                //InformationManager.DisplayMessage(new InformationMessage("Size of fields: " + fields.Length));
-                //foreach (MethodInfo f in fields)
-                //{
-                //    InformationManager.DisplayMessage(new InformationMessage(f.Name));
-                //    File.AppendAllText("woutput.txt", f.Name + "\n");
-                //}
 
 
-
-                //MemoryStream stream = new MemoryStream();
-                //using (System.IO.BinaryWriter writer = new System.IO.BinaryWriter(stream))
-                //{
-                //    writer.Write(myByte);
-                //    writer.Write(myInt32);
-                //    writer.Write("Hello");
-                //}
-                //byte[] bytes = stream.ToArray();
-
-                //vect = converted(agentPtr);
-                //if (vect.IsValid)
-                //{
-                //    InformationManager.DisplayMessage(new InformationMessage("Vector is valid!"));
-                //}
-                //else
-                //{
-                //    InformationManager.DisplayMessage(new InformationMessage("Vector is invalid!"));
-                //}
-                //InformationManager.DisplayMessage(new InformationMessage("x:" + vect.x + " | y: " + vect.y + " | z: " + vect.z));
-            }
-            if (Mission.Current != null && agentPtr != UIntPtr.Zero)
+            if (Mission.Current != null && playerPtr != UIntPtr.Zero)
             {
                 if (t + 0.01 > Time.ApplicationTime)
                 {
@@ -545,7 +492,11 @@ namespace CoopTestMod
                 }
                 t = Time.ApplicationTime;
                 MemoryStream stream = new MemoryStream();
-                Vec3 myPos = getPosition(agentPtr);
+                Vec3 myPos = getPosition(playerPtr);
+                uint movementFlag = (uint)_player.MovementFlags;
+                uint eventFlag = (uint)_player.EventControlFlags;
+                Vec2 movementDirection = _player.GetMovementDirection();
+                Vec2 lookDirection = _player.MovementInputVector;
                 if (myPos.IsValid)
                 {
                     using (System.IO.BinaryWriter writer = new System.IO.BinaryWriter(stream))
@@ -553,6 +504,12 @@ namespace CoopTestMod
                         writer.Write(myPos.x);
                         writer.Write(myPos.y);
                         writer.Write(myPos.z);
+                        writer.Write(movementFlag);
+                        writer.Write(eventFlag);
+                        writer.Write(movementDirection.x);
+                        writer.Write(movementDirection.y);
+                        writer.Write(lookDirection.x);
+                        writer.Write(lookDirection.y);
                     }
                     byte[] bytes = stream.ToArray();
                     if (isServer && handler != null && handler.Connected)
@@ -570,7 +527,6 @@ namespace CoopTestMod
                     }
 
                 }
-
             }
 
         }
